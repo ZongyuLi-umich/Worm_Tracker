@@ -1,5 +1,5 @@
 ## Worm_Tracker
-This is a worm tracker based on python. For more details, please visit: <br />
+This is a worm tracker used in Dr.Gourgou's project. For more details, please visit: <br />
 [Spatial learning, navigation and decision-making in  C. elegans ](https://elenigourgou.engin.umich.edu/research/)
 ## Requirement
 --Python 3<br />
