@@ -13,7 +13,7 @@ This is a worm tracker based on python. For more details, please visit: <br />
 ### If tracking a worm on an opensurface, i.e. the clockwise / counter clockwise detection
 `/bin/bash python3 worm_tracker.py --input_dir[your video directory] --H[video height] --W[video width] --is_clock`
 ### If using IDE
-Then you can change `run_my_code.sh` and run it in your IDE.
+You can change the command line in `run_my_code.sh` and run it in your IDE.
 
 ## Results
 ### Tracking a worm inside a T-maze
