@@ -70,25 +70,48 @@ class Tmaze_detector:
         d = 0
         if idx.size > 0:
             first_index = idx[0]
+            assert left_right[first_index] in {1,2}
+            if left_right[first_index] == 1:
+                first_decision = 1
+            else:
+                first_decision = 2
             for i in range(first_index - 1):
                 d += distance.euclidean((location[i, 0], location[i, 1]), (location[i + 1, 0], location[i + 1, 1]))
             sec = (first_index + 1) / fps
             d /= (T_pixel / self.T_length)
             speed = d / sec
         else:
+            first_decision = 0
             for i in range(location.shape[0] - 1):
                 d += distance.euclidean((location[i, 0], location[i, 1]), (location[i + 1, 0], location[i + 1, 1]))
             sec = location.shape[0] / fps
             d /= (T_pixel / self.T_length)
             speed = d / sec
-        return d, speed
+        return d, speed, first_decision
 
-    def plot_result(self, frame, result, distance, speed, video_name):
+    def plot_result(self, frame, result, distance, speed, video_name, first_decision, floor_wall_stabled):
+        floor_num = np.sum((floor_wall_stabled == 0))
+        wall_num = np.sum((floor_wall_stabled == 1))
+        floor_ratio = floor_num / (floor_num + wall_num)
+        wall_ratio = 1 - floor_ratio
+
         plt.figure(num=None, figsize=(18, 12), dpi=144, facecolor='w', edgecolor='k')
         plt.imshow(frame)
         plt.scatter(result[:, 1], result[:, 0], marker='o', s = 12, color='r', label = 'Tracking curve')
+        plt.text(0.8 * self.W, 0.8 * self.H, 'floor ratio: ' + str(round(floor_ratio, 2)) + '\n' +
+                 'wall ratio: ' + str(round(wall_ratio, 2)) + '\n',
+                 fontsize=20)
+
         plt.plot(result[:, 1], result[:, 0], color='r')
-        title_str = 'Distance = ' + str(round(distance, 4)) + ' mm, Speed = ' + str(round(speed, 4)) + ' mm/s'
+        assert first_decision in {0, 1, 2}
+        if first_decision == 0:
+            decision_str = 'No decision'
+        elif first_decision == 1:
+            decision_str = 'Left decision'
+        else:
+            decision_str = 'Right decision'
+
+        title_str = decision_str + ' with Distance = ' + str(round(distance, 4)) + ' mm, Speed = ' + str(round(speed, 4)) + ' mm/s'
         plt.title(title_str, fontsize=20)
         plt.legend(fontsize=20)
         plt.savefig(self.input_dir + 'result_folder/' + video_name + '_result.png', dpi='figure', bbox_inches="tight")
@@ -153,14 +176,14 @@ class Tmaze_detector:
                 capture = cv2.VideoCapture(cv2.samples.findFileOrKeep(video_path))
                 total_frame = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
                 fps = int(capture.get(cv2.CAP_PROP_FPS))
-                print(fps)
+                # print(fps)
                 min_HW = min(self.H, self.W)
                 out = cv2.VideoWriter(self.input_dir + 'result_folder/' + video_name + '_result.avi',
                                      cv2.VideoWriter_fourcc(*'MPEG'), fps, (self.W * 2, self.H))
                 result = np.zeros([total_frame, 2])
-                left_right = -1 * np.ones([total_frame, 1])
+                left_right = -1 * np.ones([total_frame])
                 # -1 means NaN, 0 means in the middle, 1 means turn left, 2 means turn right
-                floor_wall = -1 * np.ones([total_frame, 1])
+                floor_wall = -1 * np.ones([total_frame])
                 # -1 means NaN, 0 means on the Floor, 1 means on the Wall
                 if not capture.isOpened:
                     print('Unable to open: ' + video_path)
@@ -274,8 +297,8 @@ class Tmaze_detector:
                 result = result.astype(int)
                 result_stabled, left_right_stabled, floor_wall_stabled = self.stable_result(result, left_right, floor_wall)
                 result_filled = self.fill_zeros(result_stabled)
-                d, speed = self.cal_dis_speed(result_filled, left_right_stabled, T_pixel, fps)
-                self.plot_result(firstframe, result_filled, d, speed, video_name)
+                d, speed, first_decision = self.cal_dis_speed(result_filled, left_right_stabled, T_pixel, fps)
+                self.plot_result(firstframe, result_filled, d, speed, video_name, first_decision, floor_wall_stabled)
                 cv2.destroyAllWindows()
                 self.result.append(result_filled)
                 self.left_right.append(left_right_stabled)

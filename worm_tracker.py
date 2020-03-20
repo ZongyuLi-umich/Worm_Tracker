@@ -13,7 +13,6 @@ parser.add_argument("--port", default=50093)
 args = parser.parse_args()
 
 def main():
-    print(args.is_clock)
     if args.is_clock == True:
         Video_processor = clock_detect(args.input_dir,
                                        args.H,
