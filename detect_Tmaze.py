@@ -133,8 +133,7 @@ class Tmaze_detector:
             max_centerness_arg = 0
             for c in range(len(contours)):
                 centers[c,:] = np.mean(contours[c].squeeze(1), axis=0)
-                centerness = np.sqrt((centers[c,0] - self.center_x)**2 / (self.center_x**2) + \
-                                     (centers[c,1] - self.center_y)**2 / (self.center_y**2))
+                centerness = distance.euclidean((centers[c,:][0], centers[c,:][1]), (self.W/2, self.H/2))
                 # print(centerness)
                 if centerness < max_centerness:
                     max_centerness_arg = c
@@ -142,11 +141,18 @@ class Tmaze_detector:
         # The Second dimension in contour is corresponding to the Height
             contours[max_centerness_arg] -= np.array([self.camera_shift, 0])
             con = contours[max_centerness_arg].squeeze(1)
+
+
             indices = np.argsort(con[:, 0])
             left_indices = indices[0:50]
             right_indices = indices[-50:]
             left = np.mean(con[left_indices,:], axis = 0).astype(int)
             right = np.mean(con[right_indices,:], axis = 0).astype(int)
+            # sanity check
+            if (right[0] - left[0]) * 1.6 < self.W / 3:
+                print('cannot pass the sanity check!')
+                return [], [], []
+
             con_return = np.expand_dims(contours[max_centerness_arg], axis=0)
             return con_return, left, right
     def floor_wall(self, point, contour, threshold):
@@ -168,6 +174,7 @@ class Tmaze_detector:
         video_count = 0
         for file in os.listdir(self.input_dir):
             if file.endswith('.avi'):
+                file = 'Training18.avi'
                 video_count += 1
                 video_path = os.path.join(self.input_dir, file)
                 # parent_path = video_path.split('/')[0:-1]
@@ -190,13 +197,15 @@ class Tmaze_detector:
                     exit(0)
                 last_mask = np.zeros([self.H, self.W])
                 count = -1
+                one = 0
                 while True:
                     ret, frame = capture.read()
                     if frame is None:
                         break
                     count += 1
                     con, left, right = self.segmentation(frame)
-                    if count == 0:
+                    if con != [] and one == 0:
+                        one = 1
                         firstframe = frame
                         T_pixel = (right[0] - left[0]) * 1.6
                     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -315,9 +324,9 @@ class Tmaze_detector:
                 output_path = self.input_dir + 'result_folder/' + 'output.mat'
                 scipy.io.savemat(output_path, Output)
 
-# input_dir = '/Volumes/Samsung_T5/Worm_Videos/ok1605 x6/'
-# # input_dir = '/Volumes/Samsung_T5/Worm_Tracking/Experiment_downsample/'
-# H = 1440
-# W = 1920
-# p = Tmaze_detector(input_dir, H, W)
-# p.process()
+input_dir = '/Volumes/Samsung_T5/Worm_Videos/ok1605 x6/'
+# input_dir = '/Volumes/Samsung_T5/Worm_Tracking/Experiment_downsample/'
+H = 1440
+W = 1920
+p = Tmaze_detector(input_dir, H, W)
+p.process()
