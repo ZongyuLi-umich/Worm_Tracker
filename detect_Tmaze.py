@@ -174,7 +174,7 @@ class Tmaze_detector:
         video_count = 0
         for file in os.listdir(self.input_dir):
             if file.endswith('.avi'):
-                file = 'Training18.avi'
+                # file = 'Training18.avi'
                 video_count += 1
                 video_path = os.path.join(self.input_dir, file)
                 # parent_path = video_path.split('/')[0:-1]
@@ -324,9 +324,9 @@ class Tmaze_detector:
                 output_path = self.input_dir + 'result_folder/' + 'output.mat'
                 scipy.io.savemat(output_path, Output)
 
-input_dir = '/Volumes/Samsung_T5/Worm_Videos/ok1605 x6/'
-# input_dir = '/Volumes/Samsung_T5/Worm_Tracking/Experiment_downsample/'
-H = 1440
-W = 1920
-p = Tmaze_detector(input_dir, H, W)
-p.process()
+# input_dir = '/Volumes/Samsung_T5/Worm_Videos/ok1605 x6/'
+# # input_dir = '/Volumes/Samsung_T5/Worm_Tracking/Experiment_downsample/'
+# H = 1440
+# W = 1920
+# p = Tmaze_detector(input_dir, H, W)
+# p.process()
