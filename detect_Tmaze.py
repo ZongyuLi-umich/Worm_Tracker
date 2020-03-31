@@ -136,11 +136,11 @@ class Tmaze_detector:
     def segmentation(self, frame, th):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(gray, th, 255, cv2.THRESH_BINARY)
-        kernel = np.ones((3, 3), np.uint8)
-        erode = cv2.erode(thresh, kernel, iterations=10)
         kernel = np.ones((7, 7), np.uint8)
-        dilate = cv2.dilate(erode, kernel, iterations=10)
-        contours, hierarchy = cv2.findContours(dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        dilate = cv2.dilate(thresh, kernel, iterations=10)
+        kernel = np.ones((3, 3), np.uint8)
+        erode = cv2.erode(dilate, kernel, iterations=10)
+        contours, hierarchy = cv2.findContours(erode, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         if len(contours) == 0:
             print('Contours no found!')
             return [],[],[],[],[]
@@ -333,8 +333,9 @@ class Tmaze_detector:
                 out.release()
                 capture.release()
                 result = result.astype(int)
+                # stable results for 5 times
                 result_stabled, left_right_stabled, floor_wall_stabled = self.stable_result(result, left_right, floor_wall)
-                for s in range(8):
+                for s in range(4):
                     result_stabled, left_right_stabled, floor_wall_stabled = self.stable_result(result_stabled, left_right_stabled,
                                                                                                 floor_wall_stabled)
                 try:
