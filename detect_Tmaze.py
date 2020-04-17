@@ -11,7 +11,7 @@ class Tmaze_detector:
         self.detector = cv2.createBackgroundSubtractorKNN(detectShadows= False)
         self.H = Height
         self.W = Width
-        self.video_path = []
+        self.video_name = []
         self.first_decision = []
         self.distance = []
         self.speed = []
@@ -108,9 +108,12 @@ class Tmaze_detector:
     def plot_result(self, frame, result, distance, speed, video_name, first_decision, floor_wall_stabled):
         floor_num = np.sum((floor_wall_stabled == 0))
         wall_num = np.sum((floor_wall_stabled == 1))
-        floor_ratio = floor_num / (floor_num + wall_num)
-        wall_ratio = 1 - floor_ratio
-
+        if floor_num + wall_num != 0:
+            floor_ratio = floor_num / (floor_num + wall_num)
+            wall_ratio = 1 - floor_ratio
+        else:
+            wall_ratio = 0
+            floor_ratio = 0
         plt.figure(num=None, figsize=(18, 12), dpi=144, facecolor='w', edgecolor='k')
         plt.imshow(frame)
         plt.scatter(result[:, 1], result[:, 0], marker='o', s = 12, color='r', label = 'Tracking curve')
@@ -150,12 +153,20 @@ class Tmaze_detector:
             max_centerness_arg = 0
             for c in range(len(contours)):
                 con = contours[c].squeeze(1)
+
                 indices = np.argsort(con[:, 0])
                 left_indices = indices[0:20]
                 right_indices = indices[-20:]
                 left = np.mean(con[left_indices, :], axis=0).astype(int)
                 right = np.mean(con[right_indices, :], axis=0).astype(int)
-                if (right[0] - left[0]) < self.W / 3:
+                indices = np.argsort(con[:, 1])
+                up_indices = indices[0:50]
+                down_indices = indices[-50:]
+                up = np.mean(con[up_indices, :], axis=0).astype(int)
+                down = np.mean(con[down_indices, :], axis=0).astype(int)
+                if ((right[0] - left[0]) < self.W / 2) or ((down[1] - up[1]) < self.H / 2):
+                    continue
+                elif cv2.contourArea(con) > (right[0] - left[0]) * (down[1] - up[1]) * 0.35:
                     continue
                 else:
                     centers[c,:] = np.mean(contours[c].squeeze(1), axis=0)
@@ -182,7 +193,7 @@ class Tmaze_detector:
                 down = np.mean(con[down_indices,:], axis = 0).astype(int)
                 return con_return, left, right, up, down
             else:
-                print('No contours pass the sanity check!')
+                # print('No contours pass the sanity check!')
                 return [], [], [], [], []
     def floor_wall(self, point, contour, threshold):
         contour = contour.squeeze(0)
@@ -199,10 +210,11 @@ class Tmaze_detector:
                 obj = 0
         return obj
 
-    def process(self):
+    def process(self, th1, th2):
         video_count = 0
         for file in os.listdir(self.input_dir):
             if file.endswith('.avi'):
+                # file = 'Training30B.avi'
                 video_count += 1
                 video_path = os.path.join(self.input_dir, file)
                 # parent_path = video_path.split('/')[0:-1]
@@ -232,13 +244,16 @@ class Tmaze_detector:
                     if frame is None:
                         break
                     count += 1
-                    con, left, right, up, down = self.segmentation(frame, 210)
+                    th = th1
+                    con, left, right, up, down = self.segmentation(frame, th)
                     if con == []:
-                        con, left, right, up, down = self.segmentation(frame, 170)
+                        th = th2
+                        con, left, right, up, down = self.segmentation(frame, th)
                     if left != [] and one == 0:
                         one = 1
                         firstframe = frame
                         T_pixel = right[0] - left[0]
+
                     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                     fgMask = self.detector.apply(gray_frame)
                     fgMask = cv2.GaussianBlur(fgMask, (11, 11), 0)
@@ -277,6 +292,7 @@ class Tmaze_detector:
                         result[count, :] = [mean_x, mean_y]
                         # print(con.shape)
                         if con != []:
+                            # print(th)
                             floor_wall[count] = self.floor_wall((mean_y, mean_x), con, self.floor_wall_th)
                             if floor_wall[count] == 0:
                                 cv2.putText(frame, 'Floor', (int(0.5 * self.W), int(0.15 * self.H)),
@@ -335,7 +351,7 @@ class Tmaze_detector:
                 result = result.astype(int)
                 # stable results for 5 times
                 result_stabled, left_right_stabled, floor_wall_stabled = self.stable_result(result, left_right, floor_wall)
-                for s in range(4):
+                for s in range(6):
                     result_stabled, left_right_stabled, floor_wall_stabled = self.stable_result(result_stabled, left_right_stabled,
                                                                                                 floor_wall_stabled)
                 try:
@@ -345,7 +361,8 @@ class Tmaze_detector:
                     self.result.append(result_filled)
                     self.left_right.append(left_right_stabled)
                     self.wall.append(floor_wall_stabled)
-                    self.video_path.append(video_path)
+                    # print(file)
+                    self.video_name.append(file)
                     self.first_decision.append(first_decision)
                     self.distance.append(d)
                     self.speed.append(speed)
@@ -355,12 +372,19 @@ class Tmaze_detector:
                     self.left_right.append(left_right_stabled)
 
                     self.wall.append(floor_wall_stabled)
-                    self.video_path.append(video_path)
+                    self.video_name.append(file)
+                    self.first_decision.append([])
+                    self.distance.append([])
+                    self.speed.append([])
                     pass
                 cv2.destroyAllWindows()
-                self.time_ratio.append(time_count / np.sum(time_count))
+                # print(time_count / np.sum(time_count))
+                if np.sum(time_count) != 0:
+                    self.time_ratio.append(time_count / np.sum(time_count))
+                else:
+                    self.time_ratio.append([0, 0, 0, 0, 0])
             if video_count % 5 == 0:
-                Output = {'video path': self.video_path, 'location': self.result,
+                Output = {'video_name': self.video_name, 'location': self.result,
                           'left_right': self.left_right, 'wall_floor': self.wall,
                           'first_decision': self.first_decision, 'time_ratio': self.time_ratio,
                           'distance': self.distance, 'speed': self.speed
@@ -368,23 +392,25 @@ class Tmaze_detector:
                 output_path = self.input_dir + 'result_folder/' + 'output.mat'
                 scipy.io.savemat(output_path, Output, do_compression= True)
 
-input_dir = r'C:\Users\zonyul\Worm_Tracking\ok1605 x6/'
-# input_dir = '/Volumes/Samsung_T5/Worm_Tracking/Experiment_downsample/'
-H = 1440
-W = 1920
-p = Tmaze_detector(input_dir, H, W)
-p.process()
 
-input_dir = r'C:\Users\zonyul\Worm_Tracking\trp1trp2/'
-# input_dir = '/Volumes/Samsung_T5/Worm_Tracking/Experiment_downsample/'
-H = 1440
-W = 1920
-p = Tmaze_detector(input_dir, H, W)
-p.process()
+
+# input_dir = r'C:\Users\zonyul\Worm_Tracking\trp1trp2/'
+# # input_dir = '/Volumes/Samsung_T5/Worm_Tracking/Experiment_downsample/'
+# H = 1440
+# W = 1920
+# p = Tmaze_detector(input_dir, H, W)
+# p.process(th1= 170, th2= 200)
 
 input_dir = r'C:\Users\zonyul\Worm_Tracking\trp1trp2\Control/'
 # input_dir = '/Volumes/Samsung_T5/Worm_Tracking/Experiment_downsample/'
 H = 1440
 W = 1920
 p = Tmaze_detector(input_dir, H, W)
-p.process()
+p.process(th1= 200, th2= 170)
+
+input_dir = r'C:\Users\zonyul\Worm_Tracking\ok1605 x6/'
+# input_dir = '/Volumes/Samsung_T5/Worm_Tracking/Experiment_downsample/'
+H = 1440
+W = 1920
+p = Tmaze_detector(input_dir, H, W)
+p.process(th1= 210, th2= 170)
