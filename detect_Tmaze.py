@@ -8,7 +8,6 @@ from scipy.spatial import distance
 class Tmaze_detector:
     def __init__(self, input_dir, Height, Width):
         self.input_dir = input_dir
-        self.detector = cv2.createBackgroundSubtractorKNN(detectShadows= False)
         self.H = Height
         self.W = Width
         self.video_name = []
@@ -33,10 +32,11 @@ class Tmaze_detector:
         for i in range(4, num - 4):
             counts_x = np.bincount(result[i - 4:i + 4, 0])
             # print('result: ', stabled[i, :])
-            mode_x = np.argmax(counts_x)
+            mode_x = np.argmax(counts_x) # calculate the mode
             counts_y = np.bincount(result[i - 4:i + 4, 1])
             mode_y = np.argmax(counts_y)
             # print('mode: ', [mode_x, mode_y])
+            # solve the problem of outliers in first several frames
             if mode_x == 0 or mode_y == 0:
                 if stabled[i, 0] != mode_x or stabled[i, 1] != mode_y:
                     stabled[i, :] = 0
@@ -215,6 +215,7 @@ class Tmaze_detector:
         for file in os.listdir(self.input_dir):
             if file.endswith('.avi'):
                 # file = 'Training30B.avi'
+                self.detector = cv2.createBackgroundSubtractorKNN(detectShadows=False)
                 video_count += 1
                 video_path = os.path.join(self.input_dir, file)
                 # parent_path = video_path.split('/')[0:-1]
@@ -281,6 +282,7 @@ class Tmaze_detector:
                             if (max_x - min_x) > min_HW / 4 or (max_y - min_y) > min_HW / 4:
                                 continue
                             if con != []:
+                                print(con.shape)
                                 cv2.drawContours(frame, con, -1, (128, 0, 128), cv2.FILLED)
                             cv2.drawContours(frame, sort, 0, (0, 255, 0), 3)
                         else:
@@ -401,16 +403,16 @@ class Tmaze_detector:
 # p = Tmaze_detector(input_dir, H, W)
 # p.process(th1= 170, th2= 200)
 
-input_dir = r'C:\Users\zonyul\Worm_Tracking\trp1trp2\Control/'
-# input_dir = '/Volumes/Samsung_T5/Worm_Tracking/Experiment_downsample/'
+# input_dir = r'C:\Users\zonyul\Worm_Tracking\trp1trp2\Control/'
+input_dir = '/Volumes/Samsung_T5/Worm_Videos/ok1605 x6/'
 H = 1440
 W = 1920
 p = Tmaze_detector(input_dir, H, W)
 p.process(th1= 200, th2= 170)
 
-input_dir = r'C:\Users\zonyul\Worm_Tracking\ok1605 x6/'
-# input_dir = '/Volumes/Samsung_T5/Worm_Tracking/Experiment_downsample/'
-H = 1440
-W = 1920
-p = Tmaze_detector(input_dir, H, W)
-p.process(th1= 210, th2= 170)
+# input_dir = r'C:\Users\zonyul\Worm_Tracking\ok1605 x6/'
+# # input_dir = '/Volumes/Samsung_T5/Worm_Tracking/Experiment_downsample/'
+# H = 1440
+# W = 1920
+# p = Tmaze_detector(input_dir, H, W)
+# p.process(th1= 210, th2= 170)
